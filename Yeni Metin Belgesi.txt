@@ -2,3 +2,7 @@ nonce bilgisi neden veritabanında,
 alertleri kaldır, 
 admin rol zincire, 
 hackleme senaryosu testi
+
+client: npm start
+server: npm run dev
+test: npm test (server klasöründe)
