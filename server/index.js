@@ -9,6 +9,7 @@ app.use(cors()); // React'ten gelen isteklere izin ver
 app.use(express.json()); // Gelen verileri JSON formatında oku
 app.use("/auth", require("./routes/auth"));
 app.use("/admin", require("./routes/admin"));
+app.use("/user", require("./routes/user"));
 
 // --- Test Rotası ---
 // Tarayıcıdan localhost:5000'e girince çalışır
