@@ -1,21 +1,59 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify"; // Toast eklendi
+
+// SENİN ADMİN CÜZDAN ADRESİN
+const ADMIN_WALLET = "0xa3e5c03ea8473d40f81908724837b93fc56b85ed".toLowerCase();
 
 function Dashboard() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
 
+  // Kullanıcı admin mi kontrolü
+  const isAdmin = user?.wallet_address?.toLowerCase() === ADMIN_WALLET;
+
   const handleLogout = () => {
+    // Bildirim ver
+    toast.info("👋 Çıkış yapılıyor...");
+    
+    // Hafızayı temizle
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    navigate("/");
+
+    // Bildirimin görünmesi için 1 saniye bekle, sonra ana sayfaya at
+    setTimeout(() => {
+      navigate("/");
+    }, 1000);
   };
 
-  if (!user) return null; // Kullanıcı yoksa boş dön
+  if (!user) return null;
 
   return (
     <div style={{ textAlign: "center", marginTop: "50px", fontFamily: "Segoe UI" }}>
       <h1>🎉 Hoşgeldin, {user.full_name}!</h1>
+      
+      {/* --- SADECE ADMİN GÖRÜR --- */}
+      {isAdmin && (
+        <div style={{ marginBottom: "20px" }}>
+          <button 
+            onClick={() => navigate("/admin")}
+            style={{ 
+              background: "linear-gradient(45deg, #4f46e5, #9333ea)", 
+              color: "white", 
+              padding: "12px 24px", 
+              border: "none", 
+              borderRadius: "8px", 
+              cursor: "pointer",
+              fontWeight: "bold",
+              boxShadow: "0 4px 15px rgba(147, 51, 234, 0.4)"
+            }}
+          >
+            🛡️ Yönetici Paneline Git
+          </button>
+        </div>
+      )}
+      {/* --------------------------- */}
+
       <p style={{ color: "#666" }}>Kimlik doğrulama başarıyla tamamlandı.</p>
       
       <div style={{ 
@@ -38,7 +76,7 @@ function Dashboard() {
         {/* ŞİFRE İLE GİRENLER İÇİN */}
         {user.password_hash && (
           <div>
-            <p style={{fontSize:"12px", color:"#888", marginBottom:"5px"}}>🔑 Password Hash:</p>
+            <p style={{fontSize:"12px", color:"#888", marginBottom:"5px"}}>🔑 Password Hash (Güvenli):</p>
             <code style={{background:"#f8f9fa", padding:"5px", display:"block", wordBreak:"break-all", fontSize:"11px"}}>
               {user.password_hash}
             </code>

@@ -2,9 +2,10 @@ import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
 import { ethers } from "ethers";
+import { toast } from "react-toastify"; // Toast kütüphanesini çağır
 import "./Login.css";
 
-// --- DİKKAT: BURAYA KENDİ CÜZDAN ADRESİNİ YAPIŞTIR ---
+// BURAYA KENDİ CÜZDAN ADRESİNİ YAPIŞTIR
 const ADMIN_WALLET = "0xa3e5c03ea8473d40f81908724837b93fc56b85ed".toLowerCase(); 
 
 function Login() {
@@ -12,24 +13,23 @@ function Login() {
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
 
-  // --- ORTAK BAŞARI FONKSİYONU (AKILLI YÖNLENDİRME) ---
   const loginSuccess = (data) => {
     localStorage.setItem("token", data.token);
     localStorage.setItem("user", JSON.stringify(data.user));
 
-    // Admin Kontrolü
+    // Başarılı giriş bildirimi (Yeşil)
+    toast.success("🎉 Giriş Başarılı!");
+
     const currentWallet = data.user.wallet_address ? data.user.wallet_address.toLowerCase() : "";
 
     if (currentWallet === ADMIN_WALLET) {
-      console.log("👑 Admin girişi tespit edildi -> Yönetici Paneline gidiliyor.");
-      navigate("/admin");
+      setTimeout(() => navigate("/admin"), 1000); // Bildirimi görmek için 1sn bekle
     } else {
-      console.log("👤 Normal kullanıcı girişi -> Dashboard'a gidiliyor.");
-      navigate("/dashboard");
+      setTimeout(() => navigate("/dashboard"), 1000);
     }
   };
 
-  // --- A. KLASİK GİRİŞ (WEB2) ---
+  // --- WEB2 GİRİŞ ---
   const handleEmailLogin = async () => {
     try {
       const response = await axios.post("http://localhost:5000/auth/login-email", {
@@ -39,13 +39,14 @@ function Login() {
       loginSuccess(response.data);
     } catch (error) {
       console.error(error);
-      alert(error.response?.data || "Giriş başarısız!");
+      // Hata bildirimi (Kırmızı)
+      toast.error(error.response?.data || "Giriş başarısız!");
     }
   };
 
-  // --- B. METAMASK İLE GİRİŞ (WEB3) ---
+  // --- WEB3 GİRİŞ ---
   const handleMetamaskLogin = async () => {
-    if (!window.ethereum) return alert("Metamask yüklü değil!");
+    if (!window.ethereum) return toast.warning("🦊 Lütfen Metamask yükleyin!");
 
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
@@ -56,10 +57,9 @@ function Login() {
         wallet_address: walletAddress
       });
       
-      const nonce = nonceResponse.data.nonce;
+      const message = `InsideBox Güvenli Giriş\n\nBu imza isteği kimliğinizi doğrulamak içindir.\nNonce: ${nonceResponse.data.nonce}`;
       
-      // Profesyonel İmzalama Mesajı
-      const message = `InsideBox Güvenli Giriş\n\nBu imza isteği kimliğinizi doğrulamak içindir.\nNonce: ${nonce}`;
+      toast.info("📝 Lütfen Metamask üzerinden imzalayın...");
       const signature = await signer.signMessage(message);
 
       const loginResponse = await axios.post("http://localhost:5000/auth/login-wallet", {
@@ -72,9 +72,9 @@ function Login() {
     } catch (error) {
       console.error(error);
       if (error.response && error.response.status === 404) {
-        alert("Bu cüzdan adresi sistemde kayıtlı değil. Lütfen önce kayıt olun!");
+        toast.error("⚠️ Bu cüzdan kayıtlı değil. Önce kayıt olun!");
       } else {
-        alert("Giriş işlemi iptal edildi veya hata oluştu.");
+        toast.error("❌ İşlem iptal edildi veya hata oluştu.");
       }
     }
   };

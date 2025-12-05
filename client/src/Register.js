@@ -2,64 +2,71 @@ import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
 import { ethers } from "ethers";
+import { toast } from "react-toastify"; // Toast Eklendi
 import "./Login.css";
 
 function Register() {
   const navigate = useNavigate();
 
-  // --- HAFIZA (State) ---
   const [activeTab, setActiveTab] = useState("password");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   
-  // Cüzdan Durumları
   const [walletAddress, setWalletAddress] = useState("");
-  const [signature, setSignature] = useState(""); // YENİ: İmzayı burada saklayacağız
+  const [signature, setSignature] = useState(""); 
   const [isConnecting, setIsConnecting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState(""); 
+  // errorMessage state'ini kaldırdık, artık Toast var.
 
-  // --- 1. CÜZDAN BAĞLAMA VE İMZALAMA ---
+  // --- CÜZDAN BAĞLAMA ---
   const connectWallet = async () => {
-    if (!window.ethereum) return setErrorMessage("Metamask bulunamadı!");
+    if (!window.ethereum) return toast.warning("🦊 Metamask bulunamadı!");
     
-    setIsConnecting(true); // Yükleniyor...
-    setErrorMessage("");   
+    setIsConnecting(true);
 
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
       
-      // KRİTİK DEĞİŞİKLİK: İmzayı burada, bağlanırken alıyoruz
-      // Bu işlem kullanıcı onay verene kadar bekler (await)
+      toast.info("📝 Lütfen kayıt onayını imzalayın...");
       const sig = await signer.signMessage("InsideBox Kayıt Onayı");
 
-      // Onay verildiyse bilgileri kaydet
       setWalletAddress(address);
-      setSignature(sig); // İmzayı sakla
+      setSignature(sig);
+      toast.success("✅ Cüzdan bağlandı ve imzalandı!");
 
     } catch (err) {
       console.error(err);
-      // Kullanıcı iptal ederse veya hata olursa
-      setErrorMessage("Bağlantı veya İmza reddedildi.");
-      setWalletAddress(""); // Temizle
-      setSignature("");     // Temizle
+      toast.error("❌ Bağlantı veya imza reddedildi.");
+      setWalletAddress("");
+      setSignature("");
     } finally {
-      setIsConnecting(false); // Yüklenme bitti
+      setIsConnecting(false);
     }
   };
 
-  // --- 2. CÜZDAN SIFIRLAMA ---
   const resetWallet = () => {
     setWalletAddress("");
-    setSignature(""); // İmzayı da sil
-    setErrorMessage("");
+    setSignature("");
+    toast.info("Bağlantı kesildi.");
   };
 
-  // --- 3. KAYIT OLMA ---
+  // --- KAYIT OLMA ---
   const handleRegister = async () => {
-    setErrorMessage("");
+    // 1. VALIDATION (Frontend)
+    const emailRegex = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
+    if (!emailRegex.test(email)) {
+      return toast.warn("⚠️ Lütfen geçerli bir e-posta girin.");
+    }
+
+    if (fullName.trim().length < 3) {
+      return toast.warn("⚠️ Ad Soyad en az 3 karakter olmalı.");
+    }
+
+    if (activeTab === "password" && password.length < 6) {
+      return toast.warn("⚠️ Şifre çok kısa (Min 6 karakter).");
+    }
 
     try {
       let payload = {
@@ -71,12 +78,9 @@ function Register() {
       };
 
       if (activeTab === "wallet") {
-        // Hem adres hem imza var mı kontrol et
         if (!walletAddress || !signature) {
-           return setErrorMessage("Lütfen önce cüzdanınızı bağlayıp imzalayın.");
+           return toast.error("⚠️ Lütfen önce cüzdanı bağlayıp imzalayın.");
         }
-        
-        // Zaten connectWallet içinde aldığımız imzayı kullanıyoruz
         payload.wallet_address = walletAddress;
         payload.signature = signature;
       }
@@ -85,12 +89,14 @@ function Register() {
 
       localStorage.setItem("token", response.data.token);
       localStorage.setItem("user", JSON.stringify(response.data.user));
-      navigate("/dashboard");
+      
+      toast.success("🎉 Kayıt Başarılı! Yönlendiriliyorsunuz...");
+      setTimeout(() => navigate("/dashboard"), 1500);
 
     } catch (error) {
       console.error(error);
       const msg = error.response?.data?.error || "Kayıt işlemi başarısız.";
-      setErrorMessage(msg);
+      toast.error(msg);
     }
   };
 
@@ -102,24 +108,18 @@ function Register() {
           <p>Hemen aramıza katılın</p>
         </div>
 
-        {/* Hata Mesajı */}
-        {errorMessage && (
-          <div style={{ backgroundColor: "#fee2e2", color: "#b91c1c", padding: "10px", borderRadius: "8px", fontSize: "13px", marginBottom: "15px", textAlign:"left" }}>
-            ⚠️ {errorMessage}
-          </div>
-        )}
+        {/* Eski Hata Kutusu Kaldırıldı -> Artık Toast var */}
 
-        {/* Tab Butonları */}
         <div style={{ display: "flex", gap: "10px", marginBottom: "20px", justifyContent: "center" }}>
           <button 
-            onClick={() => {setActiveTab("password"); setErrorMessage("");}}
+            onClick={() => setActiveTab("password")}
             className={activeTab === "password" ? "btn btn-primary" : "btn btn-secondary"}
             style={{ width: "50%", fontSize: "12px" }}
           >
             🔑 Şifre ile
           </button>
           <button 
-            onClick={() => {setActiveTab("wallet"); setErrorMessage("");}}
+            onClick={() => setActiveTab("wallet")}
             className={activeTab === "wallet" ? "btn btn-primary" : "btn btn-secondary"}
             style={{ width: "50%", fontSize: "12px" }}
           >
@@ -127,7 +127,6 @@ function Register() {
           </button>
         </div>
 
-        {/* Form Alanları */}
         <div className="form-group">
           <label>Ad Soyad</label>
           <input 
