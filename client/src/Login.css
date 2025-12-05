@@ -1,0 +1,101 @@
+/* Kartın kendisi */
+.login-card {
+  background: white;
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); /* Hafif gölge */
+  width: 400px;
+  text-align: center;
+}
+
+/* Başlık: Welcome back */
+.login-header h2 {
+  margin: 0 0 10px 0;
+  color: #333;
+  font-size: 24px;
+}
+
+.login-header p {
+  color: #666;
+  margin-bottom: 30px;
+  font-size: 14px;
+}
+
+/* Giriş Kutuları (Input) */
+.form-group {
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: #666;
+}
+
+.form-control {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-sizing: border-box; /* Padding taşmasın diye */
+  font-size: 14px;
+}
+
+/* Butonlar */
+.btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  font-size: 14px;
+  transition: 0.3s;
+}
+
+/* Mavi Giriş Butonu */
+.btn-primary {
+  background-color: #3b82f6; /* InsideBox mavisi */
+  color: white;
+  margin-top: 10px;
+}
+
+.btn-primary:hover {
+  background-color: #2563eb;
+}
+
+/* Ethereum Butonu (Google butonu yerine) */
+.btn-secondary {
+  background-color: white;
+  border: 1px solid #e0e0e0;
+  color: #333;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.btn-secondary:hover {
+  background-color: #f8f9fa;
+}
+
+/* Ayraç (OR çizgisi) */
+.divider {
+  display: flex;
+  align-items: center;
+  margin: 20px 0;
+  color: #aaa;
+  font-size: 12px;
+}
+
+.divider::before, .divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.divider span {
+  padding: 0 10px;
+}
