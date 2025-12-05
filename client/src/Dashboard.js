@@ -38,7 +38,7 @@ function Dashboard() {
         {/* ŞİFRE İLE GİRENLER İÇİN */}
         {user.password_hash && (
           <div>
-            <p style={{fontSize:"12px", color:"#888", marginBottom:"5px"}}>🔑 Password Hash (Güvenli):</p>
+            <p style={{fontSize:"12px", color:"#888", marginBottom:"5px"}}>🔑 Password Hash:</p>
             <code style={{background:"#f8f9fa", padding:"5px", display:"block", wordBreak:"break-all", fontSize:"11px"}}>
               {user.password_hash}
             </code>

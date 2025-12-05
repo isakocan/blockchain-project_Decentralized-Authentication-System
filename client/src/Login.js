@@ -1,14 +1,33 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
-import { ethers } from "ethers"; // Metamask kütüphanesi
+import { ethers } from "ethers";
 import "./Login.css";
 
+// --- DİKKAT: BURAYA KENDİ CÜZDAN ADRESİNİ YAPIŞTIR ---
+const ADMIN_WALLET = "0xa3e5c03ea8473d40f81908724837b93fc56b85ed".toLowerCase(); 
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
+
+  // --- ORTAK BAŞARI FONKSİYONU (AKILLI YÖNLENDİRME) ---
+  const loginSuccess = (data) => {
+    localStorage.setItem("token", data.token);
+    localStorage.setItem("user", JSON.stringify(data.user));
+
+    // Admin Kontrolü
+    const currentWallet = data.user.wallet_address ? data.user.wallet_address.toLowerCase() : "";
+
+    if (currentWallet === ADMIN_WALLET) {
+      console.log("👑 Admin girişi tespit edildi -> Yönetici Paneline gidiliyor.");
+      navigate("/admin");
+    } else {
+      console.log("👤 Normal kullanıcı girişi -> Dashboard'a gidiliyor.");
+      navigate("/dashboard");
+    }
+  };
 
   // --- A. KLASİK GİRİŞ (WEB2) ---
   const handleEmailLogin = async () => {
@@ -25,34 +44,24 @@ function Login() {
   };
 
   // --- B. METAMASK İLE GİRİŞ (WEB3) ---
-  // --- B. METAMASK İLE GİRİŞ (WEB3) ---
   const handleMetamaskLogin = async () => {
-    if (!window.ethereum) {
-      return alert("Lütfen tarayıcınıza Metamask eklentisini kurun!");
-    }
+    if (!window.ethereum) return alert("Metamask yüklü değil!");
 
     try {
-      // 1. Cüzdanı Bağla
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const walletAddress = await signer.getAddress();
       
-      // 2. Backend'den Nonce İste
       const nonceResponse = await axios.post("http://localhost:5000/auth/nonce", {
         wallet_address: walletAddress
       });
       
       const nonce = nonceResponse.data.nonce;
-
-      // --- GÜNCELLEME BURADA ---
-      // Mesajı oluşturuyoruz (Backend'deki metinle %100 aynı olmalı)
-      const message = `InsideBox Güvenli Giriş\n\nBu imza isteği kimliğinizi doğrulamak içindir.\nNonce: ${nonce}`;
       
-      // Artık sadece sayıyı değil, bu mesajı imzalıyoruz
+      // Profesyonel İmzalama Mesajı
+      const message = `InsideBox Güvenli Giriş\n\nBu imza isteği kimliğinizi doğrulamak içindir.\nNonce: ${nonce}`;
       const signature = await signer.signMessage(message);
-      // -------------------------
 
-      // 3. İmzayı Gönder
       const loginResponse = await axios.post("http://localhost:5000/auth/login-wallet", {
         wallet_address: walletAddress,
         signature: signature
@@ -65,16 +74,9 @@ function Login() {
       if (error.response && error.response.status === 404) {
         alert("Bu cüzdan adresi sistemde kayıtlı değil. Lütfen önce kayıt olun!");
       } else {
-        alert("Cüzdan girişi başarısız oldu.");
+        alert("Giriş işlemi iptal edildi veya hata oluştu.");
       }
     }
-  };
-
-  // --- ORTAK BAŞARI FONKSİYONU ---
-  const loginSuccess = (data) => {
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("user", JSON.stringify(data.user));
-    navigate("/dashboard");
   };
 
   return (
@@ -85,7 +87,6 @@ function Login() {
           <p>Devam etmek için bilgilerinizi girin</p>
         </div>
 
-        {/* --- KLASİK GİRİŞ FORM --- */}
         <div className="form-group">
           <label>E-posta Adresi</label>
           <input 
@@ -116,13 +117,12 @@ function Login() {
           <span>VEYA</span>
         </div>
 
-        {/* --- WEB3 BUTONU --- */}
         <button className="btn btn-secondary" onClick={handleMetamaskLogin}>
            <span>🦊</span> Ethereum ile Giriş Yap
         </button>
 
         <p style={{ fontSize: "12px", marginTop: "20px", color: "#666" }}>
-            Hesabın yok mu? <Link to="/register" style={{ color: "#3b82f6", cursor: "pointer", textDecoration: "none" }}>Kayıt Ol</Link>
+          Hesabın yok mu? <Link to="/register" style={{ color: "#3b82f6", cursor: "pointer", textDecoration: "none" }}>Kayıt Ol</Link>
         </p>
       </div>
     </div>

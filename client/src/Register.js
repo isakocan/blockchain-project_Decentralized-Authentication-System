@@ -7,34 +7,59 @@ import "./Login.css";
 function Register() {
   const navigate = useNavigate();
 
-  // --- HAFIZA ---
+  // --- HAFIZA (State) ---
   const [activeTab, setActiveTab] = useState("password");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  
+  // Cüzdan Durumları
   const [walletAddress, setWalletAddress] = useState("");
-  const [errorMessage, setErrorMessage] = useState(""); // Hata mesajı için
+  const [signature, setSignature] = useState(""); // YENİ: İmzayı burada saklayacağız
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(""); 
 
-  // --- CÜZDAN BAĞLAMA ---
+  // --- 1. CÜZDAN BAĞLAMA VE İMZALAMA ---
   const connectWallet = async () => {
     if (!window.ethereum) return setErrorMessage("Metamask bulunamadı!");
     
+    setIsConnecting(true); // Yükleniyor...
+    setErrorMessage("");   
+
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
       
+      // KRİTİK DEĞİŞİKLİK: İmzayı burada, bağlanırken alıyoruz
+      // Bu işlem kullanıcı onay verene kadar bekler (await)
+      const sig = await signer.signMessage("InsideBox Kayıt Onayı");
+
+      // Onay verildiyse bilgileri kaydet
       setWalletAddress(address);
-      setErrorMessage(""); // Varsa eski hatayı temizle
+      setSignature(sig); // İmzayı sakla
+
     } catch (err) {
       console.error(err);
-      setErrorMessage("Cüzdan bağlantısı reddedildi.");
+      // Kullanıcı iptal ederse veya hata olursa
+      setErrorMessage("Bağlantı veya İmza reddedildi.");
+      setWalletAddress(""); // Temizle
+      setSignature("");     // Temizle
+    } finally {
+      setIsConnecting(false); // Yüklenme bitti
     }
   };
 
-  // --- KAYIT OLMA (İmzalı) ---
+  // --- 2. CÜZDAN SIFIRLAMA ---
+  const resetWallet = () => {
+    setWalletAddress("");
+    setSignature(""); // İmzayı da sil
+    setErrorMessage("");
+  };
+
+  // --- 3. KAYIT OLMA ---
   const handleRegister = async () => {
-    setErrorMessage(""); // Temizle
+    setErrorMessage("");
 
     try {
       let payload = {
@@ -45,31 +70,25 @@ function Register() {
         signature: null
       };
 
-      // Eğer Cüzdan seçiliyse İMZA AL
       if (activeTab === "wallet") {
-        if (!walletAddress) return setErrorMessage("Lütfen önce cüzdanınızı bağlayın.");
-
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const signer = await provider.getSigner();
-
-        // İmza alıyoruz (Nonce yerine sabit kayıt mesajı)
-        const signature = await signer.signMessage("InsideBox Kayıt Onayı");
+        // Hem adres hem imza var mı kontrol et
+        if (!walletAddress || !signature) {
+           return setErrorMessage("Lütfen önce cüzdanınızı bağlayıp imzalayın.");
+        }
         
+        // Zaten connectWallet içinde aldığımız imzayı kullanıyoruz
         payload.wallet_address = walletAddress;
         payload.signature = signature;
       }
 
-      // Backend'e Gönder
       const response = await axios.post("http://localhost:5000/auth/register", payload);
 
-      // Başarılı
       localStorage.setItem("token", response.data.token);
       localStorage.setItem("user", JSON.stringify(response.data.user));
       navigate("/dashboard");
 
     } catch (error) {
       console.error(error);
-      // Backend'den gelen güzel hata mesajını ekrana bas
       const msg = error.response?.data?.error || "Kayıt işlemi başarısız.";
       setErrorMessage(msg);
     }
@@ -83,13 +102,14 @@ function Register() {
           <p>Hemen aramıza katılın</p>
         </div>
 
-        {/* --- HATA KUTUSU (Varsa görünür) --- */}
+        {/* Hata Mesajı */}
         {errorMessage && (
           <div style={{ backgroundColor: "#fee2e2", color: "#b91c1c", padding: "10px", borderRadius: "8px", fontSize: "13px", marginBottom: "15px", textAlign:"left" }}>
             ⚠️ {errorMessage}
           </div>
         )}
 
+        {/* Tab Butonları */}
         <div style={{ display: "flex", gap: "10px", marginBottom: "20px", justifyContent: "center" }}>
           <button 
             onClick={() => {setActiveTab("password"); setErrorMessage("");}}
@@ -107,6 +127,7 @@ function Register() {
           </button>
         </div>
 
+        {/* Form Alanları */}
         <div className="form-group">
           <label>Ad Soyad</label>
           <input 
@@ -143,14 +164,28 @@ function Register() {
         ) : (
           <div className="form-group">
              <label>Web3 Cüzdanı</label>
-             {/* Adresi gizliyoruz, sadece Bağlandı yazıyoruz */}
+             
              {walletAddress ? (
-               <div style={{ padding: "12px", background: "#f0fdf4", color: "#15803d", borderRadius: "8px", fontSize: "14px", border: "1px solid #bbf7d0", fontWeight: "600" }}>
-                 ✅ Cüzdan Bağlandı
+               <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
+                 <div style={{ flex:1, padding: "12px", background: "#f0fdf4", color: "#15803d", borderRadius: "8px", fontSize: "14px", border: "1px solid #bbf7d0", fontWeight: "600" }}>
+                   ✅ Cüzdan Bağlandı
+                 </div>
+                 <button 
+                    onClick={resetWallet}
+                    style={{ background:"#fee2e2", color:"#b91c1c", border:"none", borderRadius:"8px", width:"45px", height:"45px", cursor:"pointer", fontSize:"16px" }}
+                    title="Bağlantıyı Kes"
+                 >
+                   ✕
+                 </button>
                </div>
              ) : (
-               <button onClick={connectWallet} className="btn btn-secondary" style={{ marginTop: "0" }}>
-                 🦊 Cüzdanımı Bağla
+               <button 
+                 onClick={connectWallet} 
+                 className="btn btn-secondary" 
+                 style={{ marginTop: "0", opacity: isConnecting ? 0.7 : 1, cursor: isConnecting ? "wait" : "pointer" }}
+                 disabled={isConnecting}
+               >
+                 {isConnecting ? "⏳ Onay Bekleniyor..." : "🦊 Cüzdanımı Bağla"}
                </button>
              )}
           </div>

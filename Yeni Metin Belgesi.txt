@@ -1,0 +1,4 @@
+nonce bilgisi neden veritabanında, 
+alertleri kaldır, 
+admin rol zincire, 
+hackleme senaryosu testi
