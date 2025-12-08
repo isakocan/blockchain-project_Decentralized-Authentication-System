@@ -3,6 +3,8 @@ const pool = require("../db");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { ethers } = require("ethers");
+// YENİ: Blockchain kontrolcüsünü çağırıyoruz
+const { checkAdminOnChain } = require("../blockchain");
 
 // --- YARDIMCI FONKSİYON: E-posta Doğrulama ---
 const isValidEmail = (email) => {
@@ -10,7 +12,7 @@ const isValidEmail = (email) => {
   return /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(email);
 };
 
-// --- KAYIT OL ---
+// --- KAYIT OL (REGISTER) ---
 router.post("/register", async (req, res) => {
   try {
     const { full_name, email, password, wallet_address, signature } = req.body;
@@ -145,35 +147,52 @@ router.post("/nonce", async (req, res) => {
   }
 });
 
-// --- İMZAYI DOĞRULA (Login Wallet) ---
+// --- GİRİŞ YAP (LOGIN WALLET) ---
+// --- GİRİŞ YAP (LOGIN WALLET - DEBUG) ---
 router.post("/login-wallet", async (req, res) => {
   try {
     const { wallet_address, signature } = req.body;
     const lowerAddr = wallet_address.toLowerCase();
 
-    const user = await pool.query("SELECT * FROM users WHERE wallet_address = $1", [lowerAddr]);
+    console.log(`📥 GİRİŞ İSTEĞİ: ${lowerAddr}`);
 
-    if (user.rows.length === 0) {
-      return res.status(404).json("Kullanıcı bulunamadı.");
-    }
+    const userResult = await pool.query("SELECT * FROM users WHERE wallet_address = $1", [lowerAddr]);
+    if (userResult.rows.length === 0) return res.status(404).json("Kullanıcı bulunamadı.");
+    
+    const user = userResult.rows[0];
 
-    const dbNonce = user.rows[0].nonce;
+    // İmza Doğrulama (Burası zaten çalışıyor varsayıyoruz)
+    const dbNonce = user.nonce;
     const message = `InsideBox Güvenli Giriş\n\nBu imza isteği kimliğinizi doğrulamak içindir.\nNonce: ${dbNonce}`;
     const recoveredAddress = ethers.verifyMessage(message, signature);
 
     if (recoveredAddress.toLowerCase() !== lowerAddr) {
-      return res.status(401).json("İmza geçersiz! Bu işlemi siz yapmadınız.");
+      return res.status(401).json("İmza geçersiz!");
     }
 
-    await pool.query("UPDATE users SET nonce = NULL WHERE id = $1", [user.rows[0].id]);
+    // --- ZİNCİR KONTROLÜ ---
+    console.log("🔍 Zincire soruluyor...");
+    const isOnChainAdmin = await checkAdminOnChain(lowerAddr);
+    
+    let currentRole = user.role;
+    
+    if (isOnChainAdmin) {
+        console.log("✅ Zincir ONAYLADI! Rol 'admin' yapılıyor.");
+        await pool.query("UPDATE users SET role = 'admin' WHERE id = $1", [user.id]);
+        currentRole = 'admin';
+    } else {
+        console.log("❌ Zincir REDDETTİ! Rol 'user' olarak kalıyor.");
+        // Eğer veritabanında adminse ama zincirde değilse, yetkisini al!
+        if (user.role === 'admin') {
+            await pool.query("UPDATE users SET role = 'user' WHERE id = $1", [user.id]);
+            currentRole = 'user';
+        }
+    }
 
-    const token = jwt.sign(
-      { user_id: user.rows[0].id },
-      process.env.JWT_SECRET,
-      { expiresIn: "1h" }
-    );
+    await pool.query("UPDATE users SET nonce = NULL WHERE id = $1", [user.id]);
 
-    res.json({ token, user: user.rows[0] });
+    const token = jwt.sign({ user_id: user.id, role: currentRole }, process.env.JWT_SECRET, { expiresIn: "1h" });
+    res.json({ token, user: { ...user, role: currentRole } });
 
   } catch (err) {
     console.error(err.message);

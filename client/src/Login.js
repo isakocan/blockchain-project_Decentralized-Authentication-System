@@ -5,26 +5,27 @@ import { ethers } from "ethers";
 import { toast } from "react-toastify"; // Toast kütüphanesini çağır
 import "./Login.css";
 
-// BURAYA KENDİ CÜZDAN ADRESİNİ YAPIŞTIR
-const ADMIN_WALLET = "0xa3e5c03ea8473d40f81908724837b93fc56b85ed".toLowerCase(); 
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
 
+  // --- ORTAK BAŞARI FONKSİYONU (AKILLI YÖNLENDİRME) ---
   const loginSuccess = (data) => {
+    // Gelen veriyi (Token ve User) kaydet
     localStorage.setItem("token", data.token);
     localStorage.setItem("user", JSON.stringify(data.user));
 
-    // Başarılı giriş bildirimi (Yeşil)
     toast.success("🎉 Giriş Başarılı!");
 
-    const currentWallet = data.user.wallet_address ? data.user.wallet_address.toLowerCase() : "";
-
-    if (currentWallet === ADMIN_WALLET) {
-      setTimeout(() => navigate("/admin"), 1000); // Bildirimi görmek için 1sn bekle
+    // ARTIK ADRES DEĞİL, ROL KONTROLÜ YAPIYORUZ
+    // Backend zaten Blockchain'e bakıp rolü belirledi ve bize gönderdi.
+    if (data.user.role === 'admin') {
+      console.log("👑 Admin yetkisi tespit edildi -> Yönetici Paneline gidiliyor.");
+      setTimeout(() => navigate("/admin"), 1000);
     } else {
+      console.log("👤 Normal kullanıcı -> Dashboard'a gidiliyor.");
       setTimeout(() => navigate("/dashboard"), 1000);
     }
   };

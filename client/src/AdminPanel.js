@@ -3,8 +3,6 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify"; 
 
-// BURAYA KENDİ CÜZDAN ADRESİNİ YAPIŞTIR
-const ADMIN_WALLET = "0xa3e5c03ea8473d40f81908724837b93fc56b85ed".toLowerCase();
 
 function AdminPanel() {
   const [users, setUsers] = useState([]);
@@ -14,10 +12,12 @@ function AdminPanel() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // 1. Yetki Kontrolü
     const currentUser = JSON.parse(localStorage.getItem("user"));
-    const currentWallet = currentUser?.wallet_address ? currentUser.wallet_address.toLowerCase() : "";
 
-    if (currentWallet !== ADMIN_WALLET) {
+    // Cüzdan adresine değil, veritabanındaki ROLE bakıyoruz.
+    // Çünkü bu rolü Backend, Blockchain'den onay alarak verdi.
+    if (!currentUser || currentUser.role !== 'admin') {
       toast.error("⛔ Yetkisiz Giriş!");
       navigate("/"); 
     } else {

@@ -4,9 +4,6 @@ import { toast } from "react-toastify";
 import axios from "axios";
 import { ethers } from "ethers";
 
-// BURAYA KENDİ CÜZDAN ADRESİNİ YAPIŞTIR
-const ADMIN_WALLET = "0xa3e5c03ea8473d40f81908724837b93fc56b85ed".toLowerCase();
-
 function Dashboard() {
   const navigate = useNavigate();
   const [user, setUser] = useState(JSON.parse(localStorage.getItem("user")));
@@ -17,7 +14,7 @@ function Dashboard() {
   const [newPassword, setNewPassword] = useState("");
   const [switchPassword, setSwitchPassword] = useState(""); // Yöntem değişimi için şifre
 
-  const isAdmin = user?.wallet_address?.toLowerCase() === ADMIN_WALLET;
+  const isAdmin = user?.role === 'admin';
 
   const handleLogout = () => {
     toast.info("👋 Çıkış yapılıyor...");
