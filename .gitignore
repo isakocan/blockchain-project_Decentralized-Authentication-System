@@ -1,0 +1,10 @@
+# Bağımlılıklar (Bunlar internetten iner, yüklemeye gerek yok)
+node_modules/
+**/node_modules/
+
+# Build dosyaları
+build/
+dist/
+
+# Sistem dosyaları
+.DS_Store
