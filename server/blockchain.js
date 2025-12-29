@@ -1,16 +1,15 @@
 const { ethers } = require("ethers");
 
-// 1. SENİN KONTRAT ADRESİN (Doğru olduğundan emin ol)
-const CONTRACT_ADDRESS = "0x9846d5238a8bA6B1b963A906AE7172c35bCaE63d";
+// 1. YENİ KONTRAT ADRESİN (Deploy ettiğin 0x477... ile başlayan adres)
+const CONTRACT_ADDRESS = "0x81005dF7f98830ac673417BB083cD4d1Be0eBE50";
 
-// 2. RPC PROVIDER (Yedekli Yapı)
-// Biri çalışmazsa diğerini deneriz.
-const RPC_URL = "https://sepolia.drpc.org";; 
-// Alternatifler: "https://eth-sepolia.public.blastapi.io" veya "https://1rpc.io/sepolia"
+// 2. RPC PROVIDER
+const RPC_URL = "https://sepolia.drpc.org"; 
 
+// 3. YENİ ABI (AccessControl Kontratına Uygun)
+// Eski 'admin()' fonksiyonu yok, artık sadece 'isAdmin()' var.
 const CONTRACT_ABI = [
-  "function isAdmin(address _wallet) public view returns (bool)",
-  "function admin() public view returns (address)" // Adminin kim olduğunu da soralım
+  "function isAdmin(address _wallet) public view returns (bool)"
 ];
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
@@ -18,29 +17,17 @@ const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
 
 const checkAdminOnChain = async (walletAddress) => {
   try {
-    console.log(`\n⛓️ --- ZİNCİR KONTROLÜ BAŞLIYOR ---`);
-    console.log(`❓ Sorgulanan Cüzdan: ${walletAddress}`);
-
-    // 1. Kontrattaki Admin Kim? (Onu öğrenelim)
-    const realAdmin = await contract.admin();
-    console.log(`👑 Kontrattaki Gerçek Admin: ${realAdmin}`);
-
-    // 2. Eşleşiyor mu?
-    // Adresleri küçük harfe çevirip kıyaslayalım (Garanti olsun)
-    const isMatch = realAdmin.toLowerCase() === walletAddress.toLowerCase();
+    // YENİ MANTIK: Direkt kontrata "Bu kişi admin mi?" diye soruyoruz.
+    // Yeni kontratın 'isAdmin' fonksiyonu true veya false döner.
+    const result = await contract.isAdmin(walletAddress);
     
-    // 3. Kontrat Fonksiyonunu da deneyelim
-    const contractResult = await contract.isAdmin(walletAddress);
-    console.log(`📜 Kontrat 'isAdmin' Fonksiyonu Ne Diyor?: ${contractResult}`);
-
-    console.log(`🎯 SONUÇ: ${isMatch ? "ADMİN ONAYLANDI ✅" : "KULLANICI (REDDEDİLDİ) ❌"}`);
-    console.log(`------------------------------------\n`);
-
-    return isMatch; 
+    console.log(`⛓️ Zincir Kontrolü (${walletAddress}): ${result ? "YETKİLİ ✅" : "YETKİSİZ ❌"}`);
+    return result; 
 
   } catch (error) {
-    console.error("💥 BLOCKCHAIN HATASI:", error.message);
-    return false;
+    console.error("Blockchain Bağlantı Hatası:", error.message);
+    // Hata varsa (örneğin kontrat adresi yanlışsa) false dön
+    return false; 
   }
 };
 
