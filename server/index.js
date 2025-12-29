@@ -31,6 +31,12 @@ app.get("/test-db", async (req, res) => {
 
 // --- Sunucuyu Başlat ---
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`Sunucu ${PORT} portunda çalışıyor...`);
+  try {
+    await pool.query("SELECT 1");
+    console.log("✅ Veritabanı bağlantısı başarılı! (Supabase)");
+  } catch (err) {
+    console.error("❌ Veritabanı bağlantı hatası:", err.message);
+  }
 });

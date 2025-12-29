@@ -2,129 +2,148 @@ import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
 import { ethers } from "ethers";
-import { toast } from "react-toastify"; // Toast kütüphanesini çağır
+import { toast } from "react-toastify";
 import "./Login.css";
-
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false); // Yükleniyor durumu eklendi
   const navigate = useNavigate();
 
-  // --- ORTAK BAŞARI FONKSİYONU (AKILLI YÖNLENDİRME) ---
+  // --- Success Handler ---
   const loginSuccess = (data) => {
-    // Gelen veriyi (Token ve User) kaydet
     localStorage.setItem("token", data.token);
     localStorage.setItem("user", JSON.stringify(data.user));
 
-    toast.success("🎉 Giriş Başarılı!");
+    toast.success("Welcome back! 🚀");
 
-    // ARTIK ADRES DEĞİL, ROL KONTROLÜ YAPIYORUZ
-    // Backend zaten Blockchain'e bakıp rolü belirledi ve bize gönderdi.
     if (data.user.role === 'admin') {
-      console.log("👑 Admin yetkisi tespit edildi -> Yönetici Paneline gidiliyor.");
       setTimeout(() => navigate("/admin"), 1000);
     } else {
-      console.log("👤 Normal kullanıcı -> Dashboard'a gidiliyor.");
       setTimeout(() => navigate("/dashboard"), 1000);
     }
   };
 
-  // --- WEB2 GİRİŞ ---
+  // --- Email Login ---
   const handleEmailLogin = async () => {
+    if (!email || !password) return toast.warning("Please fill in all fields.");
+    
+    setIsLoading(true);
     try {
       const response = await axios.post("http://localhost:5000/auth/login-email", {
-        email: email,
-        password: password
+        email,
+        password,
       });
       loginSuccess(response.data);
-    } catch (error) {
-      console.error(error);
-      // Hata bildirimi (Kırmızı)
-      toast.error(error.response?.data || "Giriş başarısız!");
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Invalid credentials.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // --- WEB3 GİRİŞ ---
+  // --- Metamask Login ---
   const handleMetamaskLogin = async () => {
-    if (!window.ethereum) return toast.warning("🦊 Lütfen Metamask yükleyin!");
+    if (!window.ethereum) return toast.warning("Metamask not found!");
 
+    setIsLoading(true);
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
-      const walletAddress = await signer.getAddress();
-      
-      const nonceResponse = await axios.post("http://localhost:5000/auth/nonce", {
-        wallet_address: walletAddress
+      const address = await signer.getAddress();
+
+      // 1. Get Nonce
+      const nonceRes = await axios.post("http://localhost:5000/auth/nonce", { 
+        wallet_address: address 
       });
-      
-      const message = `InsideBox Güvenli Giriş\n\nBu imza isteği kimliğinizi doğrulamak içindir.\nNonce: ${nonceResponse.data.nonce}`;
-      
-      toast.info("📝 Lütfen Metamask üzerinden imzalayın...");
+      const { nonce } = nonceRes.data;
+
+      // 2. Sign Message
+      const message = `EtherGuard Secure Authentication System\n\nThis signature request is to verify your identity.\nNonce: ${nonce}`;
       const signature = await signer.signMessage(message);
 
-      const loginResponse = await axios.post("http://localhost:5000/auth/login-wallet", {
-        wallet_address: walletAddress,
-        signature: signature
+      // 3. Verify & Login
+      const response = await axios.post("http://localhost:5000/auth/login-wallet", {
+        wallet_address: address,
+        signature,
       });
+      loginSuccess(response.data);
 
-      loginSuccess(loginResponse.data);
-
-    } catch (error) {
-      console.error(error);
-      if (error.response && error.response.status === 404) {
-        toast.error("⚠️ Bu cüzdan kayıtlı değil. Önce kayıt olun!");
-      } else {
-        toast.error("❌ İşlem iptal edildi veya hata oluştu.");
-      }
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.error || "Wallet login failed.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
+
   return (
     <div className="login-container">
-      <div className="login-card">
+      {/* glass-card sınıfı index.css'ten geliyor */}
+      <div className="glass-card login-card">
+        
         <div className="login-header">
-          <h2>Giriş Yap</h2>
-          <p>Devam etmek için bilgilerinizi girin</p>
+          <h2>Welcome back!</h2>
+          <p></p>
         </div>
 
-        <div className="form-group">
-          <label>E-posta Adresi</label>
+        {/* Input: Email */}
+        <div className="input-group">
+          <label className="input-label">Email Address</label>
           <input 
             type="email" 
-            className="form-control" 
-            placeholder="ornek@email.com"
+            className="input-field" 
+            placeholder="name@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
         </div>
 
-        <div className="form-group">
-          <label>Şifre</label>
+        {/* Input: Password */}
+        <div className="input-group">
+          <label className="input-label">Password</label>
           <input 
             type="password" 
-            className="form-control" 
+            className="input-field" 
             placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
         </div>
 
-        <button className="btn btn-primary" onClick={handleEmailLogin}>
-            Giriş Yap
+        {/* Action Button */}
+        <button 
+          className="btn btn-primary" 
+          onClick={handleEmailLogin} 
+          disabled={isLoading}
+        >
+          {isLoading ? <div className="loader"></div> : "Sign In"}
         </button>
 
+        {/* Divider */}
         <div className="divider">
-          <span>VEYA</span>
+          <span>OR</span>
         </div>
 
-        <button className="btn btn-secondary" onClick={handleMetamaskLogin}>
-           <span>🦊</span> Ethereum ile Giriş Yap
+        {/* Web3 Button */}
+        <button 
+          className="btn btn-secondary" 
+          onClick={handleMetamaskLogin}
+          disabled={isLoading}
+        >
+           {isLoading ? <div className="loader"></div> : <>🦊 Connect Wallet</>}
         </button>
 
-        <p style={{ fontSize: "12px", marginTop: "20px", color: "#666" }}>
-          Hesabın yok mu? <Link to="/register" style={{ color: "#3b82f6", cursor: "pointer", textDecoration: "none" }}>Kayıt Ol</Link>
-        </p>
+        {/* Footer Link */}
+        <div className="footer-text">
+          Don't have an account?{" "}
+          <Link to="/register" className="text-link">
+            Create Account
+          </Link>
+        </div>
+
       </div>
     </div>
   );

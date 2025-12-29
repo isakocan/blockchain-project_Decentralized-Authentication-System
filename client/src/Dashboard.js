@@ -1,29 +1,40 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import axios from "axios";
 import { ethers } from "ethers";
+import "./Dashboard.css"; // ARTIK KENDİ CSS DOSYASINI KULLANIYOR
 
 function Dashboard() {
   const navigate = useNavigate();
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem("user")));
   
-  // Form State'leri
+  // State'i localStorage'dan güvenli başlatma
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem("user");
+    return saved ? JSON.parse(saved) : null;
+  });
+  
+  // Form States
   const [fullName, setFullName] = useState(user?.full_name || "");
   const [email, setEmail] = useState(user?.email || "");
   const [newPassword, setNewPassword] = useState("");
-  const [switchPassword, setSwitchPassword] = useState(""); // Yöntem değişimi için şifre
+  const [switchPassword, setSwitchPassword] = useState("");
 
   const isAdmin = user?.role === 'admin';
 
+  // Güvenlik: Kullanıcı yoksa at
+  useEffect(() => {
+    if (!user) navigate("/");
+  }, [user, navigate]);
+
   const handleLogout = () => {
-    toast.info("👋 Çıkış yapılıyor...");
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    toast.info("Logging out...");
+    localStorage.clear();
     setTimeout(() => navigate("/"), 1000);
   };
 
-  // --- A. PROFİL GÜNCELLEME ---
+  // --- Functions ---
+
   const updateProfile = async () => {
     try {
       const response = await axios.put("http://localhost:5000/user/update-info", {
@@ -31,15 +42,12 @@ function Dashboard() {
       });
       setUser(response.data);
       localStorage.setItem("user", JSON.stringify(response.data));
-      toast.success("✅ Profil bilgileri güncellendi.");
+      toast.success("Profile updated successfully!");
     } catch (err) {
-      toast.error(err.response?.data?.error || "Güncelleme hatası");
+      toast.error(err.response?.data?.error || "Update failed.");
     }
   };
 
-  // --- B. GÜVENLİK FONKSİYONLARI ---
-
-  // 1. Şifre Yenileme (Mevcut Yöntemde Kal)
   const changePassword = async () => {
     try {
       const response = await axios.post("http://localhost:5000/user/change-password", {
@@ -48,21 +56,20 @@ function Dashboard() {
       setUser(response.data);
       localStorage.setItem("user", JSON.stringify(response.data));
       setNewPassword("");
-      toast.success("🔑 Şifreniz başarıyla değiştirildi.");
+      toast.success("Password changed successfully.");
     } catch (err) {
-      toast.error(err.response?.data?.error || "Hata oluştu");
+      toast.error(err.response?.data?.error || "Failed to change password.");
     }
   };
 
-  // 2. Cüzdan Yenileme (Mevcut Yöntemde Kal)
   const changeWallet = async () => {
-    if (!window.ethereum) return toast.warning("🦊 Metamask yok!");
+    if (!window.ethereum) return toast.warning("Metamask not found!");
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
 
-      toast.info("📝 Yeni cüzdanı doğrulamak için imzalayın...");
+      toast.info("Please sign to confirm new wallet...");
       const signature = await signer.signMessage("InsideBox Cüzdan Güncelleme");
 
       const response = await axios.post("http://localhost:5000/user/change-wallet", {
@@ -71,21 +78,20 @@ function Dashboard() {
       
       setUser(response.data);
       localStorage.setItem("user", JSON.stringify(response.data));
-      toast.success("🦊 Cüzdan adresiniz güncellendi!");
+      toast.success("Wallet updated successfully!");
     } catch (err) {
-      toast.error(err.response?.data?.error || "Hata oluştu");
+      toast.error(err.response?.data?.error || "Wallet update failed.");
     }
   };
 
-  // 3. Cüzdana Geçiş Yap (Yöntem Değiştir)
   const switchToWallet = async () => {
-    if (!window.ethereum) return toast.warning("🦊 Metamask yok!");
+    if (!window.ethereum) return toast.warning("Metamask not found!");
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
 
-      toast.info("📝 Geçiş için imzalayın...");
+      toast.info("Please sign to switch login method...");
       const signature = await signer.signMessage("InsideBox Kimlik Değişimi");
 
       const response = await axios.post("http://localhost:5000/user/switch-to-wallet", {
@@ -94,13 +100,12 @@ function Dashboard() {
 
       setUser(response.data);
       localStorage.setItem("user", JSON.stringify(response.data));
-      toast.success("🎉 Başarıyla Cüzdan girişine geçildi!");
+      toast.success("Switched to Wallet login!");
     } catch (err) {
-      toast.error(err.response?.data?.error || "Hata oluştu");
+      toast.error(err.response?.data?.error || "Switch failed.");
     }
   };
 
-  // 4. Şifreye Geçiş Yap (Yöntem Değiştir)
   const switchToPassword = async () => {
     try {
       const response = await axios.post("http://localhost:5000/user/switch-to-password", {
@@ -110,114 +115,145 @@ function Dashboard() {
       setUser(response.data);
       localStorage.setItem("user", JSON.stringify(response.data));
       setSwitchPassword("");
-      toast.success("🎉 Başarıyla Şifre girişine geçildi!");
+      toast.success("Switched to Password login!");
     } catch (err) {
-      toast.error(err.response?.data?.error || "Hata oluştu");
+      toast.error(err.response?.data?.error || "Switch failed.");
     }
   };
 
   if (!user) return null;
 
   return (
-    <div style={{ padding: "40px", fontFamily: "Segoe UI", maxWidth: "1000px", margin: "0 auto" }}>
+    <div className="dashboard-container">
       
-      {/* --- ÜST KISIM --- */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "30px" }}>
-        <h1>🎉 Hoşgeldin, {user.full_name}!</h1>
-        <div style={{ display: "flex", gap: "10px" }}>
-          {isAdmin && (
-            <button onClick={() => navigate("/admin")} style={{ padding: "10px 20px", background: "#7c3aed", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "600" }}>
-              🛡️ Yönetici Paneli
-            </button>
-          )}
-          <button onClick={handleLogout} style={{ padding: "10px 20px", background: "#ef4444", color: "white", border: "none", borderRadius: "8px", cursor: "pointer", fontWeight: "600" }}>
-            Çıkış Yap
-          </button>
+      {/* HEADER */}
+      <div className="dashboard-header">
+        <div className="welcome-text">
+          <h1>Welcome back, {user.full_name}</h1>
         </div>
+        <button onClick={handleLogout} className="btn btn-danger" style={{ width: "auto" }}>
+          Sign Out
+        </button>
       </div>
 
-      {/* --- IZGARA DÜZENİ (GRID) --- */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "30px" }}>
+      {/* ADMIN BANNER */}
+      {isAdmin && (
+        <div className="admin-banner">
+          <div className="admin-content">
+            <h3>🛡️ Administrator Access</h3>
+            <p>You have elevated privileges to manage users and roles.</p>
+          </div>
+          <button onClick={() => navigate("/admin")} className="admin-btn">
+            Open Admin Panel →
+          </button>
+        </div>
+      )}
+
+      {/* GRID */}
+      <div className="dashboard-grid">
         
-        {/* 1. PROFİL KARTI */}
-        <div style={{ background: "white", padding: "30px", borderRadius: "12px", boxShadow: "0 4px 10px rgba(0,0,0,0.05)" }}>
-          <h3 style={{ marginTop: 0, color: "#1e293b", borderBottom: "1px solid #eee", paddingBottom: "10px" }}>👤 Profil Bilgileri</h3>
+        {/* LEFT: PROFILE */}
+        <div className="glass-card">
+          <div className="card-header">
+            <span>👤</span> Profile Information
+          </div>
           
-          <div style={{ marginBottom: "15px" }}>
-            <label style={{ display: "block", fontSize: "13px", color: "#64748b", marginBottom: "5px" }}>ID</label>
-            <input type="text" value={user.id} disabled style={{ width: "100%", padding: "10px", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "6px", color: "#94a3b8" }} />
+          <div className="input-group">
+            <label className="input-label">User ID (Immutable)</label>
+            <input type="text" className="input-field" value={user.id} disabled />
           </div>
 
-          <div style={{ marginBottom: "15px" }}>
-            <label style={{ display: "block", fontSize: "13px", color: "#64748b", marginBottom: "5px" }}>Ad Soyad</label>
-            <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} style={{ width: "100%", padding: "10px", border: "1px solid #cbd5e1", borderRadius: "6px" }} />
+          <div className="input-group">
+            <label className="input-label">Full Name</label>
+            <input 
+              type="text" 
+              className="input-field" 
+              value={fullName} 
+              onChange={(e) => setFullName(e.target.value)} 
+            />
           </div>
 
-          <div style={{ marginBottom: "15px" }}>
-            <label style={{ display: "block", fontSize: "13px", color: "#64748b", marginBottom: "5px" }}>E-posta</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} style={{ width: "100%", padding: "10px", border: "1px solid #cbd5e1", borderRadius: "6px" }} />
+          <div className="input-group">
+            <label className="input-label">Email Address</label>
+            <input 
+              type="email" 
+              className="input-field" 
+              value={email} 
+              onChange={(e) => setEmail(e.target.value)} 
+            />
           </div>
 
-          <button onClick={updateProfile} style={{ width: "100%", padding: "10px", background: "#2563eb", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}>
-            Bilgileri Güncelle
+          <button onClick={updateProfile} className="btn btn-primary">
+            Save Changes
           </button>
         </div>
 
-        {/* 2. GÜVENLİK KARTI (DİNAMİK) */}
-        <div style={{ background: "white", padding: "30px", borderRadius: "12px", boxShadow: "0 4px 10px rgba(0,0,0,0.05)" }}>
-          <h3 style={{ marginTop: 0, color: "#1e293b", borderBottom: "1px solid #eee", paddingBottom: "10px" }}>🛡️ Güvenlik & Yöntem</h3>
+        {/* RIGHT: SECURITY */}
+        <div className="glass-card">
+          <div className="card-header">
+            <span>🔐</span> Security Method
+          </div>
 
           {user.password_hash ? (
-            // --- SENARYO A: ŞİFRELİ KULLANICI ---
+            // PASSWORD USER
             <>
-              <div style={{ marginBottom: "20px" }}>
-                <label style={{ display: "block", fontSize: "13px", color: "#64748b", marginBottom: "5px" }}>Şifre Değiştir</label>
+              <div style={{ marginBottom: "30px" }}>
+                <label className="input-label">Update Password</label>
                 <div style={{ display: "flex", gap: "10px" }}>
                   <input 
-                    type="password" placeholder="Yeni şifreniz" 
-                    value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
-                    style={{ flex: 1, padding: "10px", border: "1px solid #cbd5e1", borderRadius: "6px" }} 
+                    type="password" 
+                    className="input-field" 
+                    placeholder="New password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
                   />
-                  <button onClick={changePassword} style={{ padding: "10px 15px", background: "#0f172a", color: "white", border: "none", borderRadius: "6px", cursor: "pointer" }}>Güncelle</button>
+                  <button onClick={changePassword} className="btn btn-secondary" style={{ width: "auto" }}>Save</button>
                 </div>
               </div>
 
-              <div style={{ background: "#eff6ff", padding: "15px", borderRadius: "8px", border: "1px solid #bfdbfe" }}>
-                <h4 style={{ margin: "0 0 5px 0", color: "#1e40af" }}>🦊 Cüzdana Geçiş Yap</h4>
-                <p style={{ fontSize: "12px", color: "#60a5fa", marginBottom: "10px" }}>Şifreli giriş iptal edilecek, sadece cüzdanla girebileceksiniz.</p>
-                <button onClick={switchToWallet} style={{ width: "100%", padding: "10px", background: "#3b82f6", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}>
-                  Cüzdanı Bağla ve Geç
+              <div className="divider"><span>SWITCH TO WEB3</span></div>
+
+              <div style={{ textAlign: "center" }}>
+                <p style={{ fontSize: "0.9rem", color: "var(--text-muted)", marginBottom: "15px" }}>
+                  Connect your wallet to login without a password.
+                </p>
+                <button onClick={switchToWallet} className="btn btn-primary">
+                   🦊 Connect Wallet
                 </button>
               </div>
             </>
           ) : (
-            // --- SENARYO B: CÜZDANLI KULLANICI ---
+            // WALLET USER
             <>
-              <div style={{ marginBottom: "20px" }}>
-                <label style={{ display: "block", fontSize: "13px", color: "#64748b", marginBottom: "5px" }}>Aktif Cüzdan</label>
-                <div style={{ background: "#f0fdf4", padding: "10px", borderRadius: "6px", border: "1px solid #bbf7d0", color: "#166534", fontSize: "12px", wordBreak: "break-all", marginBottom: "10px" }}>
-                  {user.wallet_address}
+              <div style={{ marginBottom: "30px" }}>
+                <label className="input-label">Active Wallet</label>
+                <div className="wallet-badge" style={{marginBottom: "10px"}}>
+                  <span style={{ fontFamily: "monospace" }}>{user.wallet_address}</span>
                 </div>
-                <button onClick={changeWallet} style={{ width: "100%", padding: "10px", background: "#16a34a", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "600" }}>
-                  Farklı Cüzdan Tanımla
+                <button onClick={changeWallet} className="btn btn-secondary">
+                  Change Wallet
                 </button>
               </div>
 
-              <div style={{ background: "#f8fafc", padding: "15px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-                <h4 style={{ margin: "0 0 5px 0", color: "#475569" }}>🔑 Şifreye Geçiş Yap</h4>
-                <p style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "10px" }}>Cüzdan silinecek, belirleyeceğiniz şifre ile gireceksiniz.</p>
+              <div className="divider"><span>SWITCH TO WEB2</span></div>
+
+              <div>
+                <label className="input-label">Set Password</label>
                 <div style={{ display: "flex", gap: "10px" }}>
                   <input 
-                    type="password" placeholder="Yeni şifre belirle" 
-                    value={switchPassword} onChange={(e) => setSwitchPassword(e.target.value)}
-                    style={{ flex: 1, padding: "10px", border: "1px solid #cbd5e1", borderRadius: "6px" }} 
+                    type="password" 
+                    className="input-field" 
+                    placeholder="New password"
+                    value={switchPassword}
+                    onChange={(e) => setSwitchPassword(e.target.value)}
                   />
-                  <button onClick={switchToPassword} style={{ padding: "10px 15px", background: "#475569", color: "white", border: "none", borderRadius: "6px", cursor: "pointer" }}>Geçiş Yap</button>
+                  <button onClick={switchToPassword} className="btn btn-primary" style={{ width: "auto" }}>Set</button>
                 </div>
               </div>
             </>
           )}
         </div>
+
       </div>
     </div>
   );

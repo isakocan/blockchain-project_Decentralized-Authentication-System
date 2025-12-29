@@ -2,45 +2,45 @@ import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
 import { ethers } from "ethers";
-import { toast } from "react-toastify"; // Toast Eklendi
-import "./Login.css";
+import { toast } from "react-toastify";
+import "./Login.css"; // Ortak stilleri kullanıyoruz
 
 function Register() {
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState("password");
+  // Form States
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   
+  // Wallet States
   const [walletAddress, setWalletAddress] = useState("");
   const [signature, setSignature] = useState(""); 
+  
+  // UI States
   const [isConnecting, setIsConnecting] = useState(false);
-  // errorMessage state'ini kaldırdık, artık Toast var.
+  const [isRegistering, setIsRegistering] = useState(false);
 
-  // --- CÜZDAN BAĞLAMA ---
+  // --- Connect Wallet ---
   const connectWallet = async () => {
-    if (!window.ethereum) return toast.warning("🦊 Metamask bulunamadı!");
+    if (!window.ethereum) return toast.warning("Metamask not found!");
     
     setIsConnecting(true);
-
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
       
-      toast.info("📝 Lütfen kayıt onayını imzalayın...");
-      const sig = await signer.signMessage("InsideBox Kayıt Onayı");
+      toast.info("Please sign the message to verify ownership...");
+      const sig = await signer.signMessage("InsideBox Registration Verification");
 
       setWalletAddress(address);
       setSignature(sig);
-      toast.success("✅ Cüzdan bağlandı ve imzalandı!");
+      toast.success("Wallet connected successfully!");
 
     } catch (err) {
       console.error(err);
-      toast.error("❌ Bağlantı veya imza reddedildi.");
-      setWalletAddress("");
-      setSignature("");
+      toast.error("Connection failed or rejected.");
     } finally {
       setIsConnecting(false);
     }
@@ -49,154 +49,125 @@ function Register() {
   const resetWallet = () => {
     setWalletAddress("");
     setSignature("");
-    toast.info("Bağlantı kesildi.");
   };
 
-  // --- KAYIT OLMA ---
+  // --- Handle Register ---
   const handleRegister = async () => {
-    // 1. VALIDATION (Frontend)
-    const emailRegex = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
-    if (!emailRegex.test(email)) {
-      return toast.warn("⚠️ Lütfen geçerli bir e-posta girin.");
+    // Validation
+    if (!fullName || !email) return toast.warning("Name and Email are required.");
+    
+    // Logic: If wallet is connected, password is NOT required. If not, it IS required.
+    if (!walletAddress && !password) {
+      return toast.warning("Please set a password or connect a wallet.");
     }
 
-    if (fullName.trim().length < 3) {
-      return toast.warn("⚠️ Ad Soyad en az 3 karakter olmalı.");
-    }
-
-    if (activeTab === "password" && password.length < 6) {
-      return toast.warn("⚠️ Şifre çok kısa (Min 6 karakter).");
-    }
-
+    setIsRegistering(true);
     try {
-      let payload = {
+      // Backend Request
+      const response = await axios.post("http://localhost:5000/auth/register", {
         full_name: fullName,
-        email: email,
-        password: activeTab === "password" ? password : null,
-        wallet_address: null,
-        signature: null
-      };
-
-      if (activeTab === "wallet") {
-        if (!walletAddress || !signature) {
-           return toast.error("⚠️ Lütfen önce cüzdanı bağlayıp imzalayın.");
-        }
-        payload.wallet_address = walletAddress;
-        payload.signature = signature;
-      }
-
-      const response = await axios.post("http://localhost:5000/auth/register", payload);
+        email,
+        password: password || null, // Send null if using wallet
+        wallet_address: walletAddress || null,
+        signature: signature || null
+      });
 
       localStorage.setItem("token", response.data.token);
       localStorage.setItem("user", JSON.stringify(response.data.user));
-      
-      toast.success("🎉 Kayıt Başarılı! Yönlendiriliyorsunuz...");
+      toast.success("Account created! Auto-Login...");
       setTimeout(() => navigate("/dashboard"), 1500);
 
-    } catch (error) {
-      console.error(error);
-      const msg = error.response?.data?.error || "Kayıt işlemi başarısız.";
-      toast.error(msg);
+    } catch (err) {
+      toast.error(err.response?.data?.error || "Registration failed.");
+    } finally {
+      setIsRegistering(false);
     }
   };
 
   return (
     <div className="login-container">
-      <div className="login-card">
+      <div className="glass-card login-card">
+        
         <div className="login-header">
-          <h2>Hesap Oluştur</h2>
-          <p>Hemen aramıza katılın</p>
+          <h2>Create Account</h2>
+          <p>Join EtherGuard today</p>
         </div>
 
-        {/* Eski Hata Kutusu Kaldırıldı -> Artık Toast var */}
-
-        <div style={{ display: "flex", gap: "10px", marginBottom: "20px", justifyContent: "center" }}>
-          <button 
-            onClick={() => setActiveTab("password")}
-            className={activeTab === "password" ? "btn btn-primary" : "btn btn-secondary"}
-            style={{ width: "50%", fontSize: "12px" }}
-          >
-            🔑 Şifre ile
-          </button>
-          <button 
-            onClick={() => setActiveTab("wallet")}
-            className={activeTab === "wallet" ? "btn btn-primary" : "btn btn-secondary"}
-            style={{ width: "50%", fontSize: "12px" }}
-          >
-            🦊 Cüzdan ile
-          </button>
-        </div>
-
-        <div className="form-group">
-          <label>Ad Soyad</label>
+        {/* Input: Full Name */}
+        <div className="input-group">
+          <label className="input-label">Full Name</label>
           <input 
             type="text" 
-            className="form-control" 
-            placeholder="Adınız Soyadınız"
+            className="input-field" 
+            placeholder="John Doe"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
           />
         </div>
 
-        <div className="form-group">
-          <label>E-posta Adresi</label>
+        {/* Input: Email */}
+        <div className="input-group">
+          <label className="input-label">Email Address</label>
           <input 
             type="email" 
-            className="form-control" 
-            placeholder="ornek@email.com"
+            className="input-field" 
+            placeholder="name@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
         </div>
 
-        {activeTab === "password" ? (
-          <div className="form-group">
-            <label>Şifre Belirle</label>
-            <input 
-              type="password" 
-              className="form-control" 
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
+        {/* Dynamic Section: Password OR Wallet */}
+        {walletAddress ? (
+          // IF WALLET CONNECTED
+          <div className="wallet-badge">
+            <span>✅ {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</span>
+            <button onClick={resetWallet} className="btn-icon" title="Disconnect">✕</button>
           </div>
         ) : (
-          <div className="form-group">
-             <label>Web3 Cüzdanı</label>
-             
-             {walletAddress ? (
-               <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
-                 <div style={{ flex:1, padding: "12px", background: "#f0fdf4", color: "#15803d", borderRadius: "8px", fontSize: "14px", border: "1px solid #bbf7d0", fontWeight: "600" }}>
-                   ✅ Cüzdan Bağlandı
-                 </div>
-                 <button 
-                    onClick={resetWallet}
-                    style={{ background:"#fee2e2", color:"#b91c1c", border:"none", borderRadius:"8px", width:"45px", height:"45px", cursor:"pointer", fontSize:"16px" }}
-                    title="Bağlantıyı Kes"
-                 >
-                   ✕
-                 </button>
-               </div>
-             ) : (
-               <button 
-                 onClick={connectWallet} 
-                 className="btn btn-secondary" 
-                 style={{ marginTop: "0", opacity: isConnecting ? 0.7 : 1, cursor: isConnecting ? "wait" : "pointer" }}
-                 disabled={isConnecting}
-               >
-                 {isConnecting ? "⏳ Onay Bekleniyor..." : "🦊 Cüzdanımı Bağla"}
-               </button>
-             )}
-          </div>
+          // IF NO WALLET
+          <>
+            <div className="input-group">
+              <label className="input-label">Password</label>
+              <input 
+                type="password" 
+                className="input-field" 
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+
+            <div className="divider">
+              <span>OR PREFER DECENTRALIZED?</span>
+            </div>
+
+            <button 
+              className="btn btn-secondary" 
+              onClick={connectWallet}
+              disabled={isConnecting}
+              style={{ marginBottom: "20px" }}
+            >
+              {isConnecting ? <div className="loader"></div> : <>🦊 Connect Wallet</>}
+            </button>
+          </>
         )}
 
-        <button className="btn btn-primary" style={{ marginTop: "20px" }} onClick={handleRegister}>
-            Kayıt Ol
+        {/* Register Button */}
+        <button 
+          className="btn btn-primary" 
+          onClick={handleRegister}
+          disabled={isRegistering}
+        >
+          {isRegistering ? <div className="loader"></div> : "Sign Up"}
         </button>
 
-        <p style={{ fontSize: "12px", marginTop: "20px", color: "#666" }}>
-          Zaten hesabın var mı? <Link to="/" style={{ color: "#3b82f6", cursor: "pointer", textDecoration: "none" }}>Giriş Yap</Link>
-        </p>
+        {/* Footer */}
+        <div className="footer-text">
+          Already have an account?{" "}
+          <Link to="/" className="text-link">Sign In</Link>
+        </div>
+
       </div>
     </div>
   );
