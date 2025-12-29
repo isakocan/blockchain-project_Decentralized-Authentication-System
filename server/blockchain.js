@@ -1,13 +1,10 @@
 const { ethers } = require("ethers");
 
-// 1. YENİ KONTRAT ADRESİN (Deploy ettiğin 0x477... ile başlayan adres)
+// Configuration
 const CONTRACT_ADDRESS = "0x81005dF7f98830ac673417BB083cD4d1Be0eBE50";
-
-// 2. RPC PROVIDER
 const RPC_URL = "https://sepolia.drpc.org"; 
 
-// 3. YENİ ABI (AccessControl Kontratına Uygun)
-// Eski 'admin()' fonksiyonu yok, artık sadece 'isAdmin()' var.
+// Minimal ABI (Only what we need)
 const CONTRACT_ABI = [
   "function isAdmin(address _wallet) public view returns (bool)"
 ];
@@ -15,19 +12,18 @@ const CONTRACT_ABI = [
 const provider = new ethers.JsonRpcProvider(RPC_URL);
 const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, provider);
 
+// --- Function: Check On-Chain Admin Status ---
 const checkAdminOnChain = async (walletAddress) => {
   try {
-    // YENİ MANTIK: Direkt kontrata "Bu kişi admin mi?" diye soruyoruz.
-    // Yeni kontratın 'isAdmin' fonksiyonu true veya false döner.
+    // Direct call to smart contract
     const result = await contract.isAdmin(walletAddress);
     
-    console.log(`⛓️ Zincir Kontrolü (${walletAddress}): ${result ? "YETKİLİ ✅" : "YETKİSİZ ❌"}`);
+    console.log(`⛓️ Chain Check (${walletAddress}): ${result ? "AUTHORIZED ✅" : "UNAUTHORIZED ❌"}`);
     return result; 
 
   } catch (error) {
-    console.error("Blockchain Bağlantı Hatası:", error.message);
-    // Hata varsa (örneğin kontrat adresi yanlışsa) false dön
-    return false; 
+    console.error("Blockchain Connection Error:", error.message);
+    return false; // Default to false on error for safety
   }
 };
 
