@@ -1,8 +1,60 @@
-nonce bilgisi neden veritabanında, 
-alertleri kaldır, 
-admin rol zincire, 
-hackleme senaryosu testi
+PROJECT TITLE: EtherGuard - Decentralized Hybrid Authentication System
 
-client: npm start
-server: npm run dev
-test: npm test (server klasöründe)
+---
+1. PROJECT OVERVIEW
+This project represents an advanced implementation of a "Hybrid Authentication System," exceeding the scope of the initial Project Proposal. It bridges the gap between Web2 (Email/Password) and Web3 (Blockchain/Wallet) technologies to provide a secure, user-friendly, and scalable identity management solution.
+
+KEY FEATURES & SECURITY ARCHITECTURE
+1. Superior Web3 Security (Phishing Resistant)
+   - Zero-Knowledge Auth: Unlike traditional Web2 sites where passwords can be phished, stolen, or reused, the Web3 login uses cryptographic signatures.
+   - Proof of Ownership: Users sign a unique "Nonce" using their Private Key. Since the Private Key never leaves the user's wallet, it cannot be intercepted. Even if the database is breached, there are no passwords to steal or crack.
+
+2. Tamper-Proof Role Management (On-Chain Guard)
+   - Dual-Validation System: Admin roles are stored on the Ethereum Blockchain (Sepolia), not just in the database.
+   - Hacker-Proof: Even if an attacker compromises the database and manually changes their role to 'Admin', the system will deny access because the Blockchain acts as the immutable "Source of Truth" and will flag them as a 'User'.
+
+3. Gas-Free User Experience vs. Paid Governance
+   - User Actions (Free): Registration and Login are handled via off-chain signatures, meaning standard users pay ZERO gas fees.
+   - Admin Actions (Paid): Only high-level governance (adding/removing admins) executes an on-chain transaction, balancing user experience with strict security.
+
+---
+2. TECHNICAL ARCHITECTURE & FILES
+
+A. Database (Supabase Cloud)
+- The project uses a cloud-hosted PostgreSQL database via Supabase.
+- You do NOT need to set up a local database to run this project. The connection string in "server/.env" is pre-configured to connect to the live cloud database.
+- Included File: "database.sql" -> I have included the SQL schema codes in the project folder strictly for review purposes, so you could see how the database structure was designed.
+
+B. Smart Contract (Remix IDE)
+- The access control logic was written in Solidity and deployed using Remix IDE.
+- Included File: "AccessControl.sol" -> Included for review to show the on-chain logic.
+- Network: Sepolia Testnet.
+
+---
+3. INSTALLATION & RUNNING THE PROJECT
+
+Since the database is on the cloud, setup is minimal.
+
+Step 1: Backend Setup
+1. Open a terminal in the "server" folder.
+2. Run "npm install" to install dependencies.
+3. Run "npm start" to launch the API server.
+
+Step 2: Frontend Setup
+1. Open a terminal in the "client" folder.
+2. Run "npm install".
+3. Run "npm start" to launch the React application.
+
+---
+4. TESTING GUIDE
+
+How to Test User Login:
+- You can create a new account using any Email/Password.
+- OR, you can install the Metamask extension, create a new wallet, and register/login using "Connect Wallet".
+- Note: These actions are gas-free and instant.
+
+How to Test Admin Features:
+- The "Admin Panel" is restricted to specific wallet addresses defined in the Smart Contract.
+- Since the Admin wallets belong to the developer (me), you might not be able to access the Admin Panel directly with a new wallet.
+- However, the system is designed so that the any Admin can grant rights to others. 
+
